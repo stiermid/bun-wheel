@@ -6,6 +6,7 @@ import os
 import platform
 import subprocess
 import sys
+import sysconfig
 import urllib.request
 import zipfile
 import tempfile
@@ -25,12 +26,11 @@ def _is_musl() -> bool:
 
 
 def _target_machine() -> str:
-    # cibuildwheel sets _PYTHON_HOST_PLATFORM for cross-arch builds on macOS
-    # e.g. "macosx-11.0-x86_64" when building x86_64 on an arm64 runner
-    host_platform = os.environ.get("_PYTHON_HOST_PLATFORM", "")
-    if host_platform:
-        return host_platform.rsplit("-", 1)[-1]
-    return platform.machine().lower()
+    # _PYTHON_HOST_PLATFORM is set by cibuildwheel for cross-arch builds (e.g. macOS).
+    # sysconfig.get_platform() reads VSCMD_ARG_TGT_ARCH on Windows, so it correctly
+    # returns "win-arm64" during Windows ARM64 cross-compilation.
+    plat = os.environ.get("_PYTHON_HOST_PLATFORM", "") or sysconfig.get_platform()
+    return plat.rsplit("-", 1)[-1]
 
 
 def _bun_platform() -> str:
@@ -75,7 +75,7 @@ def _wheel_platform_tag() -> str:
             return "macosx_11_0_arm64"
         return "macosx_10_9_x86_64"
     elif system == "win32":
-        return "win_amd64" if arch == "x86_64" else f"win_{arch}"
+        return "win_amd64" if arch == "x86_64" else "win_arm64"
     elif system.startswith("freebsd"):
         return f"freebsd_13_0_{arch}"
     else:

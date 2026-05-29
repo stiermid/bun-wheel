@@ -9,21 +9,56 @@ on:
 
 jobs:
   build:
-    name: Build wheels (${{ matrix.os }})
+    name: Build wheels (${{ matrix.platform_id }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          # linux-64
+          - os: ubuntu-latest
+            python: 313
+            platform_id: manylinux_x86_64
+          - os: ubuntu-latest
+            python: 313
+            platform_id: musllinux_x86_64
+          # linux-aarch64
+          - os: ubuntu-24.04-arm
+            python: 313
+            platform_id: manylinux_aarch64
+          - os: ubuntu-24.04-arm
+            python: 313
+            platform_id: musllinux_aarch64
+          # macos-x86_64
+          - os: macos-15-intel
+            python: 313
+            platform_id: macosx_x86_64
+          # macos-arm64
+          - os: macos-15
+            python: 313
+            platform_id: macosx_arm64
+          # windows-amd64
+          - os: windows-latest
+            python: 313
+            platform_id: win_amd64
+          # windows-arm64
+          - os: windows-11-arm
+            python: 313
+            platform_id: win_arm64
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.4.1
+        env:
+          CIBW_BUILD_VERBOSITY: 1
+          CIBW_BUILD: cp${{ matrix.python }}-${{ matrix.platform_id }}
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: "cp {wheel} {dest_dir}"
+          CIBW_REPAIR_WHEEL_COMMAND_MACOS: "cp {wheel} {dest_dir}"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.os }}
+          name: wheels-${{ matrix.platform_id }}
           path: wheelhouse/*.whl
 
   publish:
