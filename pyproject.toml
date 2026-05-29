@@ -37,6 +37,7 @@ archs = ["x86_64", "aarch64"]
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]
+repair-wheel-command = "cp {wheel} {dest_dir}"
 
 [tool.cibuildwheel.windows]
 archs = ["AMD64", "ARM64"]
