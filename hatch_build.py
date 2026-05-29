@@ -108,6 +108,7 @@ class CustomBuildHook(BuildHookInterface):
         binary_path.write_bytes(data)
         binary_path.chmod(0o755)
 
+        build_data["force_include"][str(binary_path)] = f"bun_wheel/bin/{binary_name}"
         build_data["tag"] = f"py3-none-{_wheel_platform_tag()}"
 
     def _verify_checksum(self, zip_path: Path, asset_name: str, shasums_url: str) -> None:
