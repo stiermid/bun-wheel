@@ -2,6 +2,7 @@ from typing import Any
 
 import glob
 import hashlib
+import os
 import platform
 import subprocess
 import sys
@@ -23,9 +24,18 @@ def _is_musl() -> bool:
         return False
 
 
+def _target_machine() -> str:
+    # cibuildwheel sets _PYTHON_HOST_PLATFORM for cross-arch builds on macOS
+    # e.g. "macosx-11.0-x86_64" when building x86_64 on an arm64 runner
+    host_platform = os.environ.get("_PYTHON_HOST_PLATFORM", "")
+    if host_platform:
+        return host_platform.rsplit("-", 1)[-1]
+    return platform.machine().lower()
+
+
 def _bun_platform() -> str:
     system = sys.platform
-    machine = platform.machine().lower()
+    machine = _target_machine()
 
     if machine in ("x86_64", "amd64"):
         arch = "x64"
@@ -49,7 +59,7 @@ def _bun_platform() -> str:
 
 def _wheel_platform_tag() -> str:
     system = sys.platform
-    machine = platform.machine().lower()
+    machine = _target_machine()
 
     if machine in ("x86_64", "amd64"):
         arch = "x86_64"
