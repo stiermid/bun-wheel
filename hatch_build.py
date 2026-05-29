@@ -2,8 +2,6 @@ from typing import Any
 
 import glob
 import hashlib
-import json
-import os
 import platform
 import subprocess
 import sys
@@ -76,12 +74,7 @@ def _wheel_platform_tag() -> str:
 
 class CustomBuildHook(BuildHookInterface):
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
-        bun_version = (
-            os.environ.get("BUN_VERSION")
-            or self.config.get("bun-version")
-            or self._fetch_latest_version()
-        )
-        bun_version = bun_version.lstrip("v")
+        bun_version = self.metadata.version
 
         bun_plat = _bun_platform()
         binary_name = "bun.exe" if sys.platform == "win32" else "bun"
@@ -106,13 +99,6 @@ class CustomBuildHook(BuildHookInterface):
         binary_path.chmod(0o755)
 
         build_data["tag"] = f"py3-none-{_wheel_platform_tag()}"
-
-    def _fetch_latest_version(self) -> str:
-        url = "https://api.github.com/repos/oven-sh/bun/releases/latest"
-        req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json"})
-        with urllib.request.urlopen(req) as resp:
-            data = json.load(resp)
-        return data["tag_name"].removeprefix("bun-v")
 
     def _verify_checksum(self, zip_path: Path, asset_name: str, shasums_url: str) -> None:
         with urllib.request.urlopen(shasums_url) as resp:
