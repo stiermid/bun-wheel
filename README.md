@@ -20,27 +20,15 @@ The wheel is built with [Hatchling](https://hatch.pypa.io). The custom build hoo
 uv run hatch build -t wheel
 ```
 
-### Pinning a Bun version
+### Bun version
 
-By default the hook fetches the latest Bun release. Override it with an environment variable:
-
-```sh
-BUN_VERSION=1.2.0 uv run hatch build -t wheel
-```
-
-Or set it permanently in `pyproject.toml`:
-
-```toml
-[tool.hatch.build.hooks.custom]
-path = "hatch_build.py"
-bun-version = "1.2.0"
-```
+The wheel version mirrors the bundled Bun version — `bun-wheel==1.3.14` always contains Bun `1.3.14`. To build a specific version, set the `version` field in `pyproject.toml` accordingly.
 
 ## How it works
 
 `hatch_build.py` implements a Hatchling build hook that runs before each wheel is assembled:
 
-1. Resolves the target Bun version (env var → config → latest GitHub release).
+1. Reads the Bun version from the package version in `pyproject.toml`.
 2. Downloads the platform-specific zip from the [official Bun releases](https://github.com/oven-sh/bun/releases).
 3. Verifies the SHA-256 checksum against Bun's published `SHASUMS256.txt`.
 4. Extracts the binary to `src/bun_wheel/bin/` and sets it executable.
