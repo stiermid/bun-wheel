@@ -9,6 +9,9 @@ authors = [
 requires-python = ">=3.14"
 dependencies = []
 
+[project.scripts]
+bun = "bun_wheel:exec_bun"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
