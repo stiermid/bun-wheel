@@ -69,6 +69,8 @@ def _wheel_platform_tag() -> str:
         raise RuntimeError(f"Unsupported architecture: {machine}")
 
     if system == "linux":
+        if _is_musl():
+            return f"musllinux_1_2_{arch}"
         return f"manylinux_2_17_{arch}.manylinux2014_{arch}"
     elif system == "darwin":
         if arch == "aarch64":
