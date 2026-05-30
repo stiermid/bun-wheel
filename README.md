@@ -2,6 +2,9 @@
 
 Unofficial Python wheel for [Bun](https://bun.sh)
 
+![PyPI - Version](https://img.shields.io/pypi/v/bun-wheel?logo=pypi&label=bun-wheel)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/bun-wheel)
+
 Provides the `bun` command via pip/uv without requiring a separate installer.
 
 ## Installation
@@ -56,3 +59,8 @@ To build for a specific Bun version, update the `version` field in `pyproject.to
 ## Disclaimer
 
 This project is not affiliated with or endorsed by Oven Inc. Bun is developed and maintained by [Oven](https://oven.sh). Please report issues with Bun itself to the [official Bun repository](https://github.com/oven-sh/bun).
+
+## License
+
+This project is licensed under the LGPL-2.1 License - see the [LICENSE](LICENSE) file for details.
+
