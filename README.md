@@ -2,6 +2,9 @@
 
 Unofficial Python wheel for [Bun](https://bun.sh)
 
+![PyPI - Version](https://img.shields.io/pypi/v/bun-wheel?logo=pypi&label=bun-wheel)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/bun-wheel)
+
 Provides the `bun` command via pip/uv without requiring a separate installer.
 
 ## Installation
