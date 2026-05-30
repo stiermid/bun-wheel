@@ -13,6 +13,7 @@ import tempfile
 from pathlib import Path
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
+from packaging.version import Version
 
 
 def _is_musl() -> bool:
@@ -86,7 +87,7 @@ def _wheel_platform_tag() -> str:
 
 class CustomBuildHook(BuildHookInterface):
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
-        bun_version = self.metadata.version
+        bun_version = Version(self.metadata.version).base_version
 
         bun_plat = _bun_platform()
         binary_name = "bun.exe" if sys.platform == "win32" else "bun"
