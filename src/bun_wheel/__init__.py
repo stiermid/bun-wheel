@@ -4,7 +4,11 @@ from pathlib import Path
 
 def _get_bun_path() -> str:
     bin_dir = Path(__file__).parent / "bin" 
-    binary_path = bin_dir / "bun"
+
+    if sys.platform == "win32":
+        binary_path = bin_dir / "bun.exe"
+    else:
+        binary_path = bin_dir / "bun"
 
     if not binary_path.exists():
         raise FileNotFoundError(f"bun binary not found at {binary_path}")
