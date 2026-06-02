@@ -45,6 +45,7 @@ path="hatch_build.py"
 [dependency-groups]
 dev = [
     "hatch>=1.16.5",
+    "ruff>=0.15.15",
 ]
 
 [tool.cibuildwheel]
