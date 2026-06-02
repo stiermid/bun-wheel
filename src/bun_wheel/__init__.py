@@ -7,7 +7,7 @@ def _get_bun_path() -> str:
     binary_path = bin_dir / "bun"
 
     if not binary_path.exists():
-        raise FileNotFoundError()
+        raise FileNotFoundError(f"bun binary not found at {binary_path}")
 
     return str(binary_path)
 
