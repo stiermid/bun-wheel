@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Agil Mammadov
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
 import sys
 import os
 from pathlib import Path
