@@ -6,7 +6,6 @@ from typing import Any
 import glob
 import hashlib
 import os
-import platform
 import subprocess
 import sys
 import sysconfig
@@ -95,7 +94,9 @@ class CustomBuildHook(BuildHookInterface):
         bun_plat = _bun_platform()
         binary_name = "bun.exe" if sys.platform == "win32" else "bun"
         asset_name = f"{bun_plat}.zip"
-        base_url = f"https://github.com/oven-sh/bun/releases/download/bun-v{bun_version}"
+        base_url = (
+            f"https://github.com/oven-sh/bun/releases/download/bun-v{bun_version}"
+        )
 
         print(f"Downloading Bun v{bun_version} for {bun_plat}...")
 
@@ -117,13 +118,18 @@ class CustomBuildHook(BuildHookInterface):
         build_data["force_include"][str(binary_path)] = f"bun_wheel/bin/{binary_name}"
         build_data["tag"] = f"py3-none-{_wheel_platform_tag()}"
 
-    def _verify_checksum(self, zip_path: Path, asset_name: str, shasums_url: str) -> None:
+    def _verify_checksum(
+        self, zip_path: Path, asset_name: str, shasums_url: str
+    ) -> None:
         with urllib.request.urlopen(shasums_url) as resp:
             shasums = resp.read().decode()
 
         expected = next(
-            (line.split()[0] for line in shasums.splitlines()
-             if len(line.split()) == 2 and line.split()[1] == asset_name),
+            (
+                line.split()[0]
+                for line in shasums.splitlines()
+                if len(line.split()) == 2 and line.split()[1] == asset_name
+            ),
             None,
         )
         if expected is None:

@@ -5,8 +5,9 @@ import sys
 import os
 from pathlib import Path
 
+
 def _get_bun_path() -> str:
-    bin_dir = Path(__file__).parent / "bin" 
+    bin_dir = Path(__file__).parent / "bin"
 
     if sys.platform == "win32":
         binary_path = bin_dir / "bun.exe"
@@ -17,6 +18,7 @@ def _get_bun_path() -> str:
         raise FileNotFoundError(f"bun binary not found at {binary_path}")
 
     return str(binary_path)
+
 
 def exec_bun() -> None:
     try:
