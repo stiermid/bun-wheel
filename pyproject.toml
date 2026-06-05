@@ -59,3 +59,11 @@ archs = ["x86_64", "arm64"]
 
 [tool.cibuildwheel.windows]
 archs = ["AMD64", "ARM64"]
+
+[tool.ruff.lint]
+extend-select = [
+    "UP", # pyugrade
+    "D", # pydocstyle
+    "RUF", # ruff
+    "TCH", # flake8-tpye-checking
+]
