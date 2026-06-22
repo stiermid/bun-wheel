@@ -37,6 +37,10 @@ uv run hatch build -t wheel
 
 To build for a specific Bun version, update the `version` field in `pyproject.toml` to match the desired Bun release, then rebuild.
 
+## Inspiration
+
+This project was inspired by [nodejs-wheel](https://github.com/njzjz/nodejs-wheel) package.
+
 ## Disclaimer
 
 This project is not affiliated with or endorsed by Oven Inc. Bun is developed and maintained by [Oven](https://oven.sh).
@@ -44,4 +48,3 @@ This project is not affiliated with or endorsed by Oven Inc. Bun is developed an
 ## License
 
 This project is licensed under the LGPL-2.1 License - see the [LICENSE](LICENSE) file for details.
-
