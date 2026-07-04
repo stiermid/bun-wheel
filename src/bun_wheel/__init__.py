@@ -27,6 +27,6 @@ def exec_bun() -> None:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    args = [binary] + sys.argv[1:]
+    args = [binary, *sys.argv[1:]]
 
     os.execv(binary, args)
