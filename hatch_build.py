@@ -56,8 +56,6 @@ def _bun_platform() -> str:
         return f"bun-darwin-{arch}"
     elif system == "win32":
         return f"bun-windows-{arch}"
-    elif system.startswith("freebsd"):
-        return f"bun-freebsd-{arch}"
     else:
         raise RuntimeError(f"Unsupported platform: {system}")
 
@@ -83,8 +81,6 @@ def _wheel_platform_tag() -> str:
         return "macosx_10_9_x86_64"
     elif system == "win32":
         return "win_amd64" if arch == "x86_64" else "win_arm64"
-    elif system.startswith("freebsd"):
-        return f"freebsd_13_0_{arch}"
     else:
         raise RuntimeError(f"Unsupported platform: {system}")
 
