@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2026 Agil Mammadov
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
+"""Custom Hatchling build hook that downloads and bundles the Bun binary."""
+
 from typing import Any
 
 import glob
@@ -88,7 +90,10 @@ def _wheel_platform_tag() -> str:
 
 
 class CustomBuildHook(BuildHookInterface):
+    """Download the Bun binary for the target platform into the wheel."""
+
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
+        """Fetch the Bun asset, verify its checksum, and add it to the wheel."""
         bun_version = Version(self.metadata.version).base_version
 
         bun_plat = _bun_platform()

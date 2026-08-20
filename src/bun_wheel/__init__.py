@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2026 Agil Mammadov
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
+"""Unofficial Bun wheel that provides the ``bun`` command via pip."""
+
 import sys
 import os
 from pathlib import Path
@@ -21,6 +23,7 @@ def _get_bun_path() -> str:
 
 
 def exec_bun() -> None:
+    """Run the bundled bun binary, forwarding command-line arguments."""
     try:
         binary = _get_bun_path()
     except FileNotFoundError as e:
