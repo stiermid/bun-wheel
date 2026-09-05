@@ -22,7 +22,7 @@ jobs:
         run: pip install hatchling pytest
 
       - name: Run unit tests (no binary, no network)
-        run: pytest tests/test_runtime.py tests/test_build_hook.py -q
+        run: PYTHONPATH=src pytest tests/test_runtime.py tests/test_build_hook.py -q
 
   build:
     name: Build wheels (${{ matrix.platform_id }})
