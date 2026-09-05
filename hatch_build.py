@@ -5,15 +5,16 @@
 
 from typing import Any
 
-import glob
 import hashlib
 import os
+import shutil
 import subprocess
 import sys
 import sysconfig
+import tempfile
 import urllib.request
 import zipfile
-import tempfile
+from glob import glob
 from pathlib import Path
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
@@ -21,12 +22,12 @@ from packaging.version import Version
 
 
 def _is_musl() -> bool:
-    if glob.glob("/lib/ld-musl-*.so.1"):
+    if glob("/lib/ld-musl-*.so.1"):
         return True
     try:
         result = subprocess.run(["ldd", "--version"], capture_output=True, text=True)
         return "musl" in (result.stdout + result.stderr).lower()
-    except Exception:
+    except (OSError, subprocess.SubprocessError):
         return False
 
 
@@ -35,41 +36,41 @@ def _target_machine() -> str:
     # sysconfig.get_platform() reads VSCMD_ARG_TGT_ARCH on Windows, so it correctly
     # returns "win-arm64" during Windows ARM64 cross-compilation.
     plat = os.environ.get("_PYTHON_HOST_PLATFORM", "") or sysconfig.get_platform()
-    return plat.rsplit("-", 1)[-1]
+    machine = plat.rsplit("-", 1)[-1]
+    if machine == "win32":
+        raise RuntimeError("Unsupported architecture: win32 (32-bit)")
+    return machine
+
+
+def _normalize_arch(machine: str) -> str:
+    """Normalize a host machine name to canonical ``x86_64`` / ``aarch64``."""
+    if machine in ("x86_64", "amd64"):
+        return "x86_64"
+    if machine in ("aarch64", "arm64"):
+        return "aarch64"
+    raise RuntimeError(f"Unsupported architecture: {machine}")
 
 
 def _bun_platform() -> str:
     system = sys.platform
-    machine = _target_machine()
+    arch = _normalize_arch(_target_machine())
 
-    if machine in ("x86_64", "amd64"):
-        arch = "x64"
-    elif machine in ("aarch64", "arm64"):
-        arch = "aarch64"
-    else:
-        raise RuntimeError(f"Unsupported architecture: {machine}")
+    bun_arch = "x64" if arch == "x86_64" else "aarch64"
 
     if system == "linux":
         suffix = "-musl" if _is_musl() else ""
-        return f"bun-linux-{arch}{suffix}"
+        return f"bun-linux-{bun_arch}{suffix}"
     elif system == "darwin":
-        return f"bun-darwin-{arch}"
+        return f"bun-darwin-{bun_arch}"
     elif system == "win32":
-        return f"bun-windows-{arch}"
+        return f"bun-windows-{bun_arch}"
     else:
         raise RuntimeError(f"Unsupported platform: {system}")
 
 
 def _wheel_platform_tag() -> str:
     system = sys.platform
-    machine = _target_machine()
-
-    if machine in ("x86_64", "amd64"):
-        arch = "x86_64"
-    elif machine in ("aarch64", "arm64"):
-        arch = "aarch64"
-    else:
-        raise RuntimeError(f"Unsupported architecture: {machine}")
+    arch = _normalize_arch(_target_machine())
 
     if system == "linux":
         if _is_musl():
@@ -103,11 +104,22 @@ class CustomBuildHook(BuildHookInterface):
 
         with tempfile.TemporaryDirectory() as tmp:
             zip_path = Path(tmp) / asset_name
-            urllib.request.urlretrieve(f"{base_url}/{asset_name}", zip_path)
+            with (
+                urllib.request.urlopen(f"{base_url}/{asset_name}", timeout=30) as resp,
+                open(zip_path, "wb") as f,
+            ):
+                shutil.copyfileobj(resp, f)
             self._verify_checksum(zip_path, asset_name, f"{base_url}/SHASUMS256.txt")
 
             with zipfile.ZipFile(zip_path) as zf:
-                member = next(m for m in zf.namelist() if Path(m).name == binary_name)
+                try:
+                    member = next(
+                        m for m in zf.namelist() if Path(m).name == binary_name
+                    )
+                except StopIteration:
+                    raise RuntimeError(
+                        f"{binary_name} not found in {asset_name}"
+                    ) from None
                 data = zf.read(member)
 
         bin_dir = Path(self.root) / "src" / "bun_wheel" / "bin"
@@ -119,10 +131,16 @@ class CustomBuildHook(BuildHookInterface):
         build_data["force_include"][str(binary_path)] = f"bun_wheel/bin/{binary_name}"
         build_data["tag"] = f"py3-none-{_wheel_platform_tag()}"
 
+    def clean(self, versions: list[str]) -> None:
+        """Remove the downloaded binary staged under the source tree."""
+        bin_dir = Path(self.root) / "src" / "bun_wheel" / "bin"
+        if bin_dir.is_dir():
+            shutil.rmtree(bin_dir)
+
     def _verify_checksum(
         self, zip_path: Path, asset_name: str, shasums_url: str
     ) -> None:
-        with urllib.request.urlopen(shasums_url) as resp:
+        with urllib.request.urlopen(shasums_url, timeout=30) as resp:
             shasums = resp.read().decode()
 
         expected = next(
