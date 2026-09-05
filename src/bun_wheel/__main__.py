@@ -2,5 +2,4 @@
 
 from bun_wheel import exec_bun
 
-if __name__ == "__main__":
-    exec_bun()
+exec_bun()
