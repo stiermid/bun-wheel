@@ -51,6 +51,52 @@ def test_target_machine_win32_raises(monkeypatch):
 
 
 @pytest.mark.parametrize(
+    ("host_platform", "expected"),
+    [
+        ("linux-x86_64", "linux"),
+        ("linux-aarch64", "linux"),
+        ("manylinux_2_17_x86_64", "linux"),
+        ("musllinux_1_2_aarch64", "linux"),
+        ("macosx-14.0-arm64", "darwin"),
+        ("macosx-10.9-x86_64", "darwin"),
+        ("darwin-22.0-arm64", "darwin"),
+        ("win-amd64", "win32"),
+        ("win-arm64", "win32"),
+        ("win32", "win32"),
+        ("mingw_x86_64", "win32"),
+    ],
+)
+def test_target_system_from_get_platform(monkeypatch, host_platform, expected):
+    monkeypatch.delenv("_PYTHON_HOST_PLATFORM", raising=False)
+    with patch("sysconfig.get_platform", return_value=host_platform):
+        assert hatch_build._target_system() == expected
+
+
+def test_target_system_host_platform_env_precedence(monkeypatch):
+    monkeypatch.setenv("_PYTHON_HOST_PLATFORM", "macosx-14.0-arm64")
+    with patch("sysconfig.get_platform", return_value="linux-x86_64"):
+        assert hatch_build._target_system() == "darwin"
+
+
+def test_target_system_unsupported(monkeypatch):
+    monkeypatch.delenv("_PYTHON_HOST_PLATFORM", raising=False)
+    with patch("sysconfig.get_platform", return_value="freebsd-14.0-amd64"):
+        with pytest.raises(RuntimeError, match="Unsupported platform"):
+            hatch_build._target_system()
+
+
+def test_ensure_native_build_match(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "linux")
+    hatch_build._ensure_native_build("linux")
+
+
+def test_ensure_native_build_mismatch(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "linux")
+    with pytest.raises(RuntimeError, match="Cross-OS build not supported"):
+        hatch_build._ensure_native_build("darwin")
+
+
+@pytest.mark.parametrize(
     ("platform", "machine", "musl", "expected"),
     [
         ("linux", "x86_64", False, "manylinux_2_17_x86_64.manylinux2014_x86_64"),
@@ -65,6 +111,7 @@ def test_target_machine_win32_raises(monkeypatch):
 )
 def test_wheel_platform_tag_matrix(monkeypatch, platform, machine, musl, expected):
     monkeypatch.setattr(sys, "platform", platform)
+    monkeypatch.setattr(hatch_build, "_target_system", lambda: platform)
     monkeypatch.setattr(hatch_build, "_target_machine", lambda: machine)
     monkeypatch.setattr(hatch_build, "_is_musl", lambda: musl)
     assert hatch_build._wheel_platform_tag() == expected
@@ -72,8 +119,19 @@ def test_wheel_platform_tag_matrix(monkeypatch, platform, machine, musl, expecte
 
 def test_wheel_platform_tag_unsupported(monkeypatch):
     monkeypatch.setattr(sys, "platform", "freebsd")
+    monkeypatch.setattr(hatch_build, "_target_system", lambda: "freebsd")
     monkeypatch.setattr(hatch_build, "_target_machine", lambda: "x86_64")
     with pytest.raises(RuntimeError, match="Unsupported platform"):
+        hatch_build._wheel_platform_tag()
+
+
+def test_wheel_platform_tag_cross_os_fails(monkeypatch):
+    # Target says darwin but the build host is linux: must fail fast
+    # instead of bundling the wrong asset.
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(hatch_build, "_target_system", lambda: "darwin")
+    monkeypatch.setattr(hatch_build, "_target_machine", lambda: "aarch64")
+    with pytest.raises(RuntimeError, match="Cross-OS build not supported"):
         hatch_build._wheel_platform_tag()
 
 
@@ -92,6 +150,7 @@ def test_wheel_platform_tag_unsupported(monkeypatch):
 )
 def test_bun_platform_matrix(monkeypatch, platform, machine, musl, expected):
     monkeypatch.setattr(sys, "platform", platform)
+    monkeypatch.setattr(hatch_build, "_target_system", lambda: platform)
     monkeypatch.setattr(hatch_build, "_target_machine", lambda: machine)
     monkeypatch.setattr(hatch_build, "_is_musl", lambda: musl)
     assert hatch_build._bun_platform() == expected
@@ -99,8 +158,17 @@ def test_bun_platform_matrix(monkeypatch, platform, machine, musl, expected):
 
 def test_bun_platform_unsupported(monkeypatch):
     monkeypatch.setattr(sys, "platform", "freebsd")
+    monkeypatch.setattr(hatch_build, "_target_system", lambda: "freebsd")
     monkeypatch.setattr(hatch_build, "_target_machine", lambda: "x86_64")
     with pytest.raises(RuntimeError, match="Unsupported platform"):
+        hatch_build._bun_platform()
+
+
+def test_bun_platform_cross_os_fails(monkeypatch):
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(hatch_build, "_target_system", lambda: "win32")
+    monkeypatch.setattr(hatch_build, "_target_machine", lambda: "x86_64")
+    with pytest.raises(RuntimeError, match="Cross-OS build not supported"):
         hatch_build._bun_platform()
 
 
