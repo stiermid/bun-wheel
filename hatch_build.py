@@ -1,7 +1,15 @@
 # SPDX-FileCopyrightText: 2026 Agil Mammadov
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
-"""Custom Hatchling build hook that downloads and bundles the Bun binary."""
+"""Custom Hatchling build hook that downloads and bundles the Bun binary.
+
+Builds are native-only: the wheel targets the OS/libc of the build host
+(cibuildwheel provides one host per target — see
+.github/workflows/build.yml). Cross-OS configurations fail fast via
+:func:`_ensure_native_build` instead of silently bundling the wrong asset.
+Cross-arch builds on the same OS (e.g. macOS arm64 runners building x86_64
+via ``_PYTHON_HOST_PLATFORM``) remain supported.
+"""
 
 from typing import Any
 
@@ -22,6 +30,12 @@ from packaging.version import Version
 
 
 def _is_musl() -> bool:
+    """Detect musl libc on the **build host**.
+
+    Only valid for native builds (enforced by :func:`_ensure_native_build`):
+    when building inside the target container/VM (as cibuildwheel does),
+    host == target so this answers correctly. Do not use for cross-OS builds.
+    """
     if glob("/lib/ld-musl-*.so.1"):
         return True
     try:
@@ -29,6 +43,54 @@ def _is_musl() -> bool:
         return "musl" in (result.stdout + result.stderr).lower()
     except (OSError, subprocess.SubprocessError):
         return False
+
+
+def _target_system() -> str:
+    """Return the target OS as canonical ``linux`` / ``darwin`` / ``win32``.
+
+    Derived from ``_PYTHON_HOST_PLATFORM`` (set by cibuildwheel for
+    cross-arch builds) or ``sysconfig.get_platform()``, **not** from
+    ``sys.platform`` (which always reports the build host).
+
+    Builds are native-only (see :func:`_ensure_native_build`): the target
+    OS must match the build host. This helper exists so a cross-OS
+    configuration fails fast with a clear error instead of silently
+    downloading the wrong Bun asset.
+    """
+    plat = (
+        os.environ.get("_PYTHON_HOST_PLATFORM", "") or sysconfig.get_platform()
+    ).lower()
+    if (
+        plat.startswith("win")
+        or "win32" in plat
+        or "mingw" in plat
+        or "msys" in plat
+        or "cygwin" in plat
+    ):
+        return "win32"
+    if "macosx" in plat or "macos" in plat or "darwin" in plat:
+        return "darwin"
+    if plat.startswith("linux") or "manylinux" in plat or "musllinux" in plat:
+        return "linux"
+    raise RuntimeError(f"Unsupported platform: {plat}")
+
+
+def _ensure_native_build(target_system: str) -> None:
+    """Fail fast when the target OS differs from the build host.
+
+    ``sys.platform`` always reports the host. ``_is_musl()`` also inspects
+    the host (``/lib/ld-musl-*``, host ``ldd``), so a cross-OS build would
+    silently pick the wrong Bun asset and wheel tag. Cross-arch builds on
+    the same OS (e.g. macOS x86_64 -> arm64 via cibuildwheel) remain
+    supported; only OS mismatches are rejected.
+    """
+    if target_system != sys.platform:
+        raise RuntimeError(
+            f"Cross-OS build not supported: target is {target_system!r} "
+            f"but build host is {sys.platform!r}. "
+            "Build on the target OS or via cibuildwheel "
+            "(see .github/workflows/build.yml)."
+        )
 
 
 def _target_machine() -> str:
@@ -52,7 +114,8 @@ def _normalize_arch(machine: str) -> str:
 
 
 def _bun_platform() -> str:
-    system = sys.platform
+    system = _target_system()
+    _ensure_native_build(system)
     arch = _normalize_arch(_target_machine())
 
     bun_arch = "x64" if arch == "x86_64" else "aarch64"
@@ -69,7 +132,8 @@ def _bun_platform() -> str:
 
 
 def _wheel_platform_tag() -> str:
-    system = sys.platform
+    system = _target_system()
+    _ensure_native_build(system)
     arch = _normalize_arch(_target_machine())
 
     if system == "linux":
@@ -94,7 +158,10 @@ class CustomBuildHook(BuildHookInterface):
         bun_version = Version(self.metadata.version).base_version
 
         bun_plat = _bun_platform()
-        binary_name = "bun.exe" if sys.platform == "win32" else "bun"
+        # _bun_platform() already enforces a native build; reuse the target
+        # system (== sys.platform here) so the binary name can't drift from
+        # the downloaded asset on cross-OS configurations.
+        binary_name = "bun.exe" if _target_system() == "win32" else "bun"
         asset_name = f"{bun_plat}.zip"
         base_url = (
             f"https://github.com/oven-sh/bun/releases/download/bun-v{bun_version}"
