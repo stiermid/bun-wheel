@@ -132,17 +132,60 @@ def fetch_source_file(commit: str, path: str) -> bytes:
         return response.read()
 
 
+def _mask_typescript_non_code(text: str) -> str:
+    """Hide comments and strings without exposing declarations inside them.
+
+    Only SHA literals remain visible. Complex template interpolations are rejected
+    rather than interpreted; this is a narrow extractor, not a TypeScript parser.
+    """
+    tokens = re.compile(
+        r'(?P<double>"(?:\\(?:.|\Z)|[^"\\])*)(?P<double_end>"|\Z)'
+        r"|(?P<single>'(?:\\(?:.|\Z)|[^'\\])*)(?P<single_end>'|\Z)"
+        r"|(?P<template>`(?:\\(?:.|\Z)|[^`\\])*)(?P<template_end>`|\Z)"
+        r"|(?P<block>/\*.*?)(?P<block_end>\*/|\Z)"
+        r"|(?P<line>//[^\r\n]*)",
+        re.DOTALL,
+    )
+    quoted = r"(?:\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')"
+    interpolation = rf"\$\{{(?:{quoted}|[^{{}}'\"`/\\])*\}}"
+
+    def mask(match: re.Match[str]) -> str:
+        if any(
+            match.group(end) == ""
+            for end in ("double_end", "single_end", "template_end", "block_end")
+        ):
+            raise ValueError("Unterminated TypeScript token; manual review needed")
+        value = match[0]
+        if match.group("template") is not None:
+            contents = re.sub(r"\\.", "  ", value[1:-1], flags=re.DOTALL)
+            contents = re.sub(interpolation, "", contents, flags=re.DOTALL)
+            if "${" in contents:
+                raise ValueError(
+                    "Unsupported template interpolation; manual review needed"
+                )
+        elif (
+            match.group("double") is not None or match.group("single") is not None
+        ) and (re.fullmatch(r"([\"'])([0-9a-f]{40})\1", value) is not None):
+            return value
+        return re.sub(r"[^\r\n]", " ", value)
+
+    return tokens.sub(mask, text)
+
+
 def extract_commit(text: str, name: str) -> str:
-    """Resolve a single literal source revision, rejecting unknown layouts."""
+    """Resolve one active const SHA literal, rejecting unsupported declarations."""
+    code = _mask_typescript_non_code(text)
     declarations = re.findall(
-        rf"(?m)^[ \t]*(?:export[ \t]+)?const[ \t]+{re.escape(name)}"
-        r"[ \t]*=[ \t]*([^\r\n]+)\r?$",
-        text,
+        rf"(?m)^([ \t]*(?:export[ \t]+)?(?:declare[ \t]+)?"
+        rf"(?:const|let|var)[ \t]+{re.escape(name)}\b[^\r\n]*)\r?$",
+        code,
     )
     if len(declarations) != 1:
         raise ValueError(f"Cannot resolve exactly one {name}; review upstream layout")
     match = re.fullmatch(
-        r"([\"'])([0-9a-f]{40})\1[ \t]*;?[ \t]*(?://[^\r\n]*)?",
+        rf"[ \t]*(?:export[ \t]+)?const[ \t]+{re.escape(name)}"
+        r"[ \t]*(?::[ \t]*string[ \t]*)?=[ \t]*"
+        r"([\"'])([0-9a-f]{40})\1[ \t]*;?[ \t]*",
         declarations[0],
     )
     if match is None:

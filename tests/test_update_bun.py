@@ -367,6 +367,25 @@ def test_fetch_licensing_pins_every_source_request(
     )
 
 
+def test_fetch_licensing_ignores_commented_dependency_revisions(
+    licensing, upstream_files
+):
+    upstream_files["scripts/build/deps/webkit.ts"] = (
+        f'/* Old revision:\nexport const WEBKIT_VERSION = "{"a" * 40}";\n*/\n'
+        f'export const WEBKIT_VERSION: string = "{licensing.webkit_commit}";\n'
+    ).encode()
+    upstream_files["scripts/build/deps/tinycc.ts"] = (
+        f'/* Old revision:\nconst TINYCC_COMMIT = "{"a" * 40}";\n*/\n'
+        f'const TINYCC_COMMIT = "{licensing.tinycc_commit}";\n'
+    ).encode()
+    with patch.object(
+        update_bun.urllib.request,
+        "urlopen",
+        side_effect=_urlopen(_source_responses(licensing, upstream_files), []),
+    ):
+        assert update_bun.fetch_licensing("1.4.3") == licensing
+
+
 @pytest.mark.parametrize("sha", [None, "main", "a" * 39, "z" * 40, "a" * 40 + "/x"])
 def test_fetch_licensing_rejects_unresolved_release_sha(sha):
     with (
@@ -423,6 +442,8 @@ def test_fetch_licensing_rejects_unknown_license_declaration(
         'export const WEBKIT_VERSION = "{sha}";',
         "  const WEBKIT_VERSION = '{sha}' // source revision",
         'export const WEBKIT_VERSION = "{sha}";\r\n',
+        'export const WEBKIT_VERSION: string = "{sha}";',
+        'const WEBKIT_VERSION /* inline comment */ = "{sha}"; /* tail comment */',
     ],
 )
 def test_extract_commit_accepts_literal_revision(declaration):
@@ -439,11 +460,109 @@ def test_extract_commit_accepts_literal_revision(declaration):
         'const WEBKIT_VERSION = "canary";',
         'const WEBKIT_VERSION = "abcd";',
         "const WEBKIT_VERSION = computeVersion();",
+        f'let WEBKIT_VERSION = "{"a" * 40}";',
+        f'var WEBKIT_VERSION = "{"a" * 40}";',
+        f'export declare const WEBKIT_VERSION = "{"a" * 40}";',
+        f'const WEBKIT_VERSION: CustomType = "{"a" * 40}";',
+        f'const WEBKIT_VERSION = "{"a" * 40}" + suffix;',
         f'const WEBKIT_VERSION = "{"a" * 40}";\nconst WEBKIT_VERSION = "{"b" * 40}";',
     ],
 )
 def test_extract_commit_rejects_unknown_or_ambiguous_layout(text):
     with pytest.raises(ValueError, match="review"):
+        update_bun.extract_commit(text, "WEBKIT_VERSION")
+
+
+def test_extract_commit_ignores_commented_out_declarations():
+    old = "a" * 40
+    active = "b" * 40
+    text = (
+        f'/* Old configuration:\nconst WEBKIT_VERSION = "{old}";\n*/\n'
+        f'// const WEBKIT_VERSION = "{old}";\n'
+        f'export const WEBKIT_VERSION: string = "{active}";\n'
+    )
+    assert update_bun.extract_commit(text, "WEBKIT_VERSION") == active
+
+
+@pytest.mark.parametrize("quote", ["'", '"', "`"])
+def test_extract_commit_ignores_declarations_inside_strings(quote):
+    old = "a" * 40
+    active = "b" * 40
+    escaped_quote = '\\"' if quote == '"' else '"'
+    # A line continuation makes the quoted strings valid multiline JS strings.
+    continuation = "" if quote == "`" else "\\"
+    text = (
+        f"const example = {quote}{continuation}\n"
+        f"const WEBKIT_VERSION = {escaped_quote}{old}{escaped_quote};{continuation}\n"
+        f"{quote};\n"
+        f'export const WEBKIT_VERSION = "{active}";\n'
+    )
+    assert update_bun.extract_commit(text, "WEBKIT_VERSION") == active
+
+
+def test_extract_commit_preserves_comment_markers_inside_strings():
+    active = "b" * 40
+    text = (
+        'const url = "https://example.test/*not-a-comment*/";\n'
+        'const description = "/*";\n'
+        f'const WEBKIT_VERSION = "{active}";\n'
+    )
+    assert update_bun.extract_commit(text, "WEBKIT_VERSION") == active
+
+
+def test_extract_commit_ignores_comments_and_strings_without_active_declaration():
+    text = (
+        f'/*\nconst WEBKIT_VERSION = "{"a" * 40}";\n*/\n'
+        f'const example = `\nconst WEBKIT_VERSION = "{"b" * 40}";\n`;\n'
+    )
+    with pytest.raises(ValueError, match="exactly one"):
+        update_bun.extract_commit(text, "WEBKIT_VERSION")
+
+
+def test_extract_commit_rejects_unsupported_active_declaration_after_comment():
+    text = (
+        f'/*\nconst WEBKIT_VERSION = "{"a" * 40}";\n*/\n'
+        f'export const WEBKIT_VERSION: CustomType = "{"b" * 40}";\n'
+    )
+    with pytest.raises(ValueError, match="immutable commit"):
+        update_bun.extract_commit(text, "WEBKIT_VERSION")
+
+
+@pytest.mark.parametrize(
+    "tail",
+    [
+        "/* unterminated comment",
+        'const broken = "unterminated',
+        "const broken = 'unterminated",
+        "const broken = `unterminated",
+        'const broken = "trailing escape\\',
+    ],
+)
+def test_extract_commit_rejects_unterminated_non_code_tokens(tail):
+    text = f'const WEBKIT_VERSION = "{"a" * 40}";\n{tail}'
+    with pytest.raises(ValueError, match="Unterminated TypeScript token"):
+        update_bun.extract_commit(text, "WEBKIT_VERSION")
+
+
+def test_extract_commit_masks_simple_template_interpolations():
+    active = "b" * 40
+    text = (
+        'const url = `https://${host}/${select("path")}`;\n'
+        'const triple = `${config.x64 ? "x86_64" : "arm64"}-linux`;\n'
+        "const example = `escaped \\${notAnExpression}`;\n"
+        f'const WEBKIT_VERSION = "{active}";\n'
+    )
+    assert update_bun.extract_commit(text, "WEBKIT_VERSION") == active
+
+
+def test_extract_commit_rejects_nested_template_interpolations():
+    text = (
+        "const example = `outer ${`inner\n"
+        f'const WEBKIT_VERSION = "{"a" * 40}";\n'
+        "`}`;\n"
+        f'const WEBKIT_VERSION = "{"b" * 40}";\n'
+    )
+    with pytest.raises(ValueError, match="Unsupported template interpolation"):
         update_bun.extract_commit(text, "WEBKIT_VERSION")
 
 
