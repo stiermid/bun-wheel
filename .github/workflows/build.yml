@@ -19,10 +19,10 @@ jobs:
           python-version: "3.13"
 
       - name: Install test deps
-        run: pip install hatchling pytest
+        run: pip install "hatchling>=1.27" "packaging>=24.2" pytest
 
-      - name: Run unit tests (no binary, no network)
-        run: PYTHONPATH=src pytest tests/test_runtime.py tests/test_build_hook.py tests/test_update_bun.py -q
+      - name: Run unit and licensing tests (no binary, no network)
+        run: PYTHONPATH=src pytest tests -m "not integration" -q
 
   build:
     name: Build wheels (${{ matrix.platform_id }})

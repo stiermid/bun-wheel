@@ -12,7 +12,9 @@ uv run --locked ruff format --check .
 ```
 
 Unit tests do not need network access or a Bun executable. Integration tests are
-skipped when the bundled binary is absent.
+skipped when the bundled binary is absent. Licensing tests build real sdists and
+wheels with a mocked download, check their metadata and notice bytes, and rebuild
+a wheel from the sdist. Installed-wheel smoke tests also check the retained notices.
 
 ## Contribution licensing
 
