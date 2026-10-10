@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Agil Mammadov
+# SPDX-License-Identifier: Apache-2.0
+
 """Unit tests for the bun_wheel runtime shims (mocked, no binary needed)."""
 
 import inspect

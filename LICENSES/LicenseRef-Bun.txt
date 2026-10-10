@@ -1,0 +1,28 @@
+LicenseRef-Bun identifies the separate upstream licensing terms of the
+Bun executable redistributed in bun-wheel wheels, including the code
+and libraries embedded in that executable. It is a reference to those
+terms, not a new license, a sublicense, or an Apache-2.0 license grant.
+
+Bun's own code is MIT-licensed. Its embedded components have additional
+licenses, including LGPL, BSD, Apache, and other terms. The retained Bun
+MIT notice is in MIT.txt. LGPL-2.1-or-later.txt is a retained LGPL text,
+not a statement that every LGPL component uses that exact version.
+
+Bun-LICENSE.md is a snapshot of Bun's upstream licensing document for
+bun-v1.4.2, with only a final newline added, from source commit:
+744846f844374847c902b5e7fd59b4342a51ef99
+
+Source:
+https://github.com/oven-sh/bun/blob/744846f844374847c902b5e7fd59b4342a51ef99/LICENSE.md
+
+The metadata expression "Apache-2.0 AND LicenseRef-Bun" distinguishes
+the project's Apache-2.0 code from the retained upstream terms. AND
+does not mean every file is dual-licensed or that either license may
+be chosen instead of the other. The source distribution retains this
+licensing information but does not bundle the executable.
+
+The upstream document is an inventory and source/relinking guide, not
+a complete collection of component copyright notices or proof of
+redistribution compliance. The original upstream terms govern each
+component; this reference does not replace any required license texts,
+notices, corresponding source, or relinking materials.

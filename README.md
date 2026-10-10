@@ -47,4 +47,15 @@ This project is not affiliated with or endorsed by Oven Inc. Bun is developed an
 
 ## License
 
-This project is licensed under the LGPL-2.1 License - see the [LICENSE](LICENSE) file for details.
+The original Python wrapper, build tooling, tests, documentation, and
+configuration are licensed under the **Apache License, Version 2.0**. See
+[LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+The bundled Bun executable and its embedded dependencies retain their own
+upstream licenses; they are **not** relicensed under Apache-2.0. The distribution
+metadata uses `Apache-2.0 AND LicenseRef-Bun` to record this distinction. See
+[LicenseRef-Bun](LICENSES/LicenseRef-Bun.txt) and the retained
+[Bun licensing document](LICENSES/Bun-LICENSE.md).
+
+Earlier releases were offered under LGPL-2.1-or-later. This change does not
+revoke the license rights already granted for those releases.

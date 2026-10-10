@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Agil Mammadov
+# SPDX-License-Identifier: Apache-2.0
+
 """Unit tests for the hatch build hook helpers (mocked, no network)."""
 
 import hashlib

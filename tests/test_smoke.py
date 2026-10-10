@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Agil Mammadov
+# SPDX-License-Identifier: Apache-2.0
+
 """Smoke tests against the real bundled bun binary.
 
 Skipped when ``src/bun_wheel/bin/`` is absent (plain checkouts without a

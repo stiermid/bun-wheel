@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Agil Mammadov
+# SPDX-License-Identifier: Apache-2.0
+
 """Entry point for running bun via `python -m bun_wheel`."""
 
 from typing import NoReturn

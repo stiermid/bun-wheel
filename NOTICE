@@ -1,0 +1,16 @@
+bun-wheel
+Copyright 2026 Agil Mammadov
+
+The original Python wrapper, build tooling, tests, documentation, and
+configuration are licensed under the Apache License, Version 2.0.
+
+This project was inspired by nodejs-wheel by Jinzhe Zeng:
+https://github.com/njzjz/nodejs-wheel
+
+Wheels redistribute the unmodified Bun executable from oven-sh/bun.
+Bun and its third-party components retain their upstream licenses and
+are not relicensed under Apache-2.0. See LICENSES/LicenseRef-Bun.txt and
+LICENSES/Bun-LICENSE.md for the separate upstream licensing information.
+
+This project is not affiliated with or endorsed by Bun's developers.
+These notices are informational and do not modify any license terms.

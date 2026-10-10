@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Agil Mammadov
+# SPDX-License-Identifier: Apache-2.0
+
 """Offline tests for the PR-only Bun release updater."""
 
 import subprocess
