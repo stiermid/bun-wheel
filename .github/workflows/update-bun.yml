@@ -70,7 +70,10 @@ jobs:
             ### Maintainer steps
 
             1. If prompted, click **Approve workflows to run** to start PR checks.
-            2. Review the upstream release and wait for unit tests and all wheel builds.
-            3. Merge when satisfied, then push the matching version tag to publish.
+            2. Refresh `LICENSES/bun.json` and the upstream licensing files for this
+               exact release; follow the redistribution checklist in `CONTRIBUTING.md`.
+               Wheel builds reject a version with stale licensing snapshots.
+            3. Review the upstream release and wait for unit tests and all wheel builds.
+            4. Merge only after the licensing review, then push the matching version tag to publish.
 
             This automation does not approve or merge PRs, create tags, or publish releases.

@@ -14,6 +14,7 @@ via ``_PYTHON_HOST_PLATFORM``) remain supported.
 from typing import Any
 
 import hashlib
+import json
 import os
 import shutil
 import subprocess
@@ -27,6 +28,44 @@ from pathlib import Path
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 from packaging.version import Version
+
+
+def _verify_bun_licenses(root: Path, bun_version: str) -> None:
+    """Reject stale or altered licensing snapshots before downloading a binary.
+
+    This verifies release and file consistency, not redistribution compliance.
+    """
+    license_dir = root / "LICENSES"
+    try:
+        manifest = json.loads((license_dir / "bun.json").read_text(encoding="utf-8"))
+        snapshot_version = manifest["version"]
+        files = manifest["files"]
+        if not isinstance(files, dict):
+            raise TypeError("files must be a mapping")
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise RuntimeError("Missing or invalid LICENSES/bun.json") from exc
+
+    if snapshot_version != bun_version:
+        raise RuntimeError(
+            f"Bun {bun_version} does not match licensing snapshot {snapshot_version}. "
+            "Refresh LICENSES/bun.json and the upstream notices; see CONTRIBUTING.md."
+        )
+
+    for name in (
+        "Bun-LICENSE.md",
+        "MIT.txt",
+        "LGPL-2.1-or-later.txt",
+        "LicenseRef-Bun.txt",
+    ):
+        try:
+            digest = hashlib.sha256((license_dir / name).read_bytes()).hexdigest()
+            expected = files[name]
+        except (OSError, KeyError) as exc:
+            raise RuntimeError(
+                f"Missing Bun licensing file or checksum: {name}"
+            ) from exc
+        if digest != expected:
+            raise RuntimeError(f"Bun licensing checksum mismatch: {name}")
 
 
 def _is_musl() -> bool:
@@ -156,6 +195,7 @@ class CustomBuildHook(BuildHookInterface):
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
         """Fetch the Bun asset, verify its checksum, and add it to the wheel."""
         bun_version = Version(self.metadata.version).base_version
+        _verify_bun_licenses(Path(self.root), bun_version)
 
         bun_plat = _bun_platform()
         # _bun_platform() already enforces a native build; reuse the target

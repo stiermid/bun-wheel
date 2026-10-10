@@ -4,6 +4,7 @@
 """Unit tests for the hatch build hook helpers (mocked, no network)."""
 
 import hashlib
+import json
 import sys
 from contextlib import contextmanager
 from unittest.mock import MagicMock, PropertyMock, patch
@@ -13,6 +14,73 @@ import pytest
 pytest.importorskip("hatchling")
 
 import hatch_build
+
+
+@pytest.fixture
+def license_snapshot(tmp_path):
+    license_dir = tmp_path / "LICENSES"
+    license_dir.mkdir()
+    files = {}
+    for name in (
+        "Bun-LICENSE.md",
+        "MIT.txt",
+        "LGPL-2.1-or-later.txt",
+        "LicenseRef-Bun.txt",
+    ):
+        data = f"fixture notice for {name}\n".encode()
+        (license_dir / name).write_bytes(data)
+        files[name] = hashlib.sha256(data).hexdigest()
+    (license_dir / "bun.json").write_text(
+        json.dumps({"version": "1.4.2", "files": files}), encoding="utf-8"
+    )
+    return tmp_path
+
+
+def test_verify_bun_licenses_matches_snapshot(license_snapshot):
+    hatch_build._verify_bun_licenses(license_snapshot, "1.4.2")
+
+
+def test_verify_bun_licenses_rejects_stale_version(license_snapshot):
+    with pytest.raises(RuntimeError, match="does not match licensing snapshot"):
+        hatch_build._verify_bun_licenses(license_snapshot, "1.4.3")
+
+
+@pytest.mark.parametrize(
+    "manifest", ["{", "[]", "null", "{}", '{"version": "1.4.2", "files": []}']
+)
+def test_verify_bun_licenses_rejects_invalid_manifest(license_snapshot, manifest):
+    (license_snapshot / "LICENSES" / "bun.json").write_text(manifest, encoding="utf-8")
+    with pytest.raises(RuntimeError, match=r"Missing or invalid LICENSES/bun\.json"):
+        hatch_build._verify_bun_licenses(license_snapshot, "1.4.2")
+
+
+def test_verify_bun_licenses_rejects_missing_manifest(tmp_path):
+    with pytest.raises(RuntimeError, match=r"Missing or invalid LICENSES/bun\.json"):
+        hatch_build._verify_bun_licenses(tmp_path, "1.4.2")
+
+
+@pytest.mark.parametrize(
+    "name", ["Bun-LICENSE.md", "MIT.txt", "LGPL-2.1-or-later.txt", "LicenseRef-Bun.txt"]
+)
+def test_verify_bun_licenses_rejects_missing_file(license_snapshot, name):
+    (license_snapshot / "LICENSES" / name).unlink()
+    with pytest.raises(RuntimeError, match="Missing Bun licensing file or checksum"):
+        hatch_build._verify_bun_licenses(license_snapshot, "1.4.2")
+
+
+def test_verify_bun_licenses_rejects_missing_checksum(license_snapshot):
+    path = license_snapshot / "LICENSES" / "bun.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    del manifest["files"]["MIT.txt"]
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(RuntimeError, match="Missing Bun licensing file or checksum"):
+        hatch_build._verify_bun_licenses(license_snapshot, "1.4.2")
+
+
+def test_verify_bun_licenses_rejects_changed_notice(license_snapshot):
+    (license_snapshot / "LICENSES" / "Bun-LICENSE.md").write_bytes(b"altered notice")
+    with pytest.raises(RuntimeError, match="Bun licensing checksum mismatch"):
+        hatch_build._verify_bun_licenses(license_snapshot, "1.4.2")
 
 
 @pytest.mark.parametrize(
@@ -253,6 +321,41 @@ def _hook_at(root):
     ) as mock_root:
         mock_root.return_value = str(root)
         yield hook
+
+
+def test_initialize_rejects_stale_licenses_before_network(license_snapshot):
+    with (
+        _hook_at(license_snapshot) as hook,
+        patch.object(
+            hatch_build.CustomBuildHook, "metadata", new_callable=PropertyMock
+        ) as metadata,
+        patch("hatch_build.urllib.request.urlopen") as fetch,
+    ):
+        metadata.return_value.version = "1.4.3"
+        with pytest.raises(RuntimeError, match="does not match licensing snapshot"):
+            hook.initialize("standard", {"force_include": {}})
+        fetch.assert_not_called()
+    assert not (license_snapshot / "src").exists()
+
+
+@pytest.mark.parametrize("version", ["1.4.2", "1.4.2.post1"])
+def test_initialize_checks_base_bun_version(license_snapshot, version):
+    with (
+        _hook_at(license_snapshot) as hook,
+        patch.object(
+            hatch_build.CustomBuildHook, "metadata", new_callable=PropertyMock
+        ) as metadata,
+        patch(
+            "hatch_build._verify_bun_licenses", wraps=hatch_build._verify_bun_licenses
+        ) as verify,
+        patch(
+            "hatch_build._bun_platform", side_effect=RuntimeError("stop after check")
+        ),
+    ):
+        metadata.return_value.version = version
+        with pytest.raises(RuntimeError, match="stop after check"):
+            hook.initialize("standard", {"force_include": {}})
+        verify.assert_called_once_with(license_snapshot, "1.4.2")
 
 
 def test_clean_removes_staged_bin_dir(tmp_path):

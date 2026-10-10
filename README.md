@@ -35,7 +35,10 @@ bun run index.ts
 uv run hatch build -t wheel
 ```
 
-To build for a specific Bun version, update the `version` field in `pyproject.toml` to match the desired Bun release, then rebuild.
+To build for a specific Bun version, update the `version` field in `pyproject.toml`
+and refresh the release-pinned upstream licensing files before rebuilding. See
+the [contribution and release checklist](CONTRIBUTING.md). Packaging-only `.postN`
+versions use the same underlying Bun release.
 
 ## Inspiration
 
@@ -56,6 +59,10 @@ upstream licenses; they are **not** relicensed under Apache-2.0. The distributio
 metadata uses `Apache-2.0 AND LicenseRef-Bun` to record this distinction. See
 [LicenseRef-Bun](LICENSES/LicenseRef-Bun.txt) and the retained
 [Bun licensing document](LICENSES/Bun-LICENSE.md).
+
+See [third-party licensing information](THIRD_PARTY_NOTICES.md) for the retained
+upstream notices and outstanding redistribution review requirements. Retaining
+these documents is not, by itself, a completed compliance audit.
 
 Earlier releases were offered under LGPL-2.1-or-later. This change does not
 revoke the license rights already granted for those releases.
