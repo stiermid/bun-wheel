@@ -56,8 +56,8 @@ Before publishing any release:
    compliance or transfers the distributor's responsibilities to upstream.
 2. For a new Bun version, resolve its tag to an immutable source commit. Refresh
    `LICENSES/Bun-LICENSE.md` from that commit, preserving the upstream text (a
-   final newline may be added). Update the source revisions, license-reference
-   description, third-party notices, and `LICENSES/bun.json` together. Record
+   final newline may be added). Keep release-specific source revisions and links
+   in `LICENSES/bun.json`, not in the stable explanatory notices. Record
    SHA-256 hashes of the original upstream licensing document and each retained
    file, and collect any additional required component licenses and notices.
    Updating hashes alone does not constitute the review in step 1.

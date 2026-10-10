@@ -8,12 +8,10 @@ licenses, including LGPL, BSD, Apache, and other terms. The retained Bun
 MIT notice is in MIT.txt. LGPL-2.1-or-later.txt is a retained LGPL text,
 not a statement that every LGPL component uses that exact version.
 
-Bun-LICENSE.md is a snapshot of Bun's upstream licensing document for
-bun-v1.4.2, with only a final newline added, from source commit:
-744846f844374847c902b5e7fd59b4342a51ef99
-
-Source:
-https://github.com/oven-sh/bun/blob/744846f844374847c902b5e7fd59b4342a51ef99/LICENSE.md
+Bun-LICENSE.md retains the upstream licensing document. Its exact Bun
+version, immutable source links, component revisions, and file checksums
+are recorded in bun.json. Upstream bytes are preserved; a final newline
+may be added if needed. Release facts are not repeated in this reference.
 
 The metadata expression "Apache-2.0 AND LicenseRef-Bun" distinguishes
 the project's Apache-2.0 code from the retained upstream terms. AND

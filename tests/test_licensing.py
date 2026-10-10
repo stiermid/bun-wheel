@@ -156,23 +156,40 @@ def test_license_snapshot_provenance_matches_project(project):
     )
     version = Version(WheelBuilder(str(project)).metadata.version).base_version
     assert manifest["version"] == version
-    reference = (project / "LICENSES" / "LicenseRef-Bun.txt").read_text(
-        encoding="utf-8"
-    )
-    notices = (project / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
-    assert f"bun-v{version}" in reference
-    assert manifest["source_commit"] in reference
-    assert f"## Retained information for Bun {version}" in notices
     for key in ("source_commit", "webkit_commit", "tinycc_commit"):
         assert len(manifest[key]) == 40
         assert all(character in "0123456789abcdef" for character in manifest[key])
-        assert manifest[key] in notices
+    assert manifest["release_url"] == (
+        f"https://github.com/oven-sh/bun/releases/tag/bun-v{version}"
+    )
+    assert manifest["source_url"] == (
+        f"https://github.com/oven-sh/bun/tree/{manifest['source_commit']}"
+    )
+    assert manifest["upstream_license_url"] == (
+        f"https://github.com/oven-sh/bun/blob/{manifest['source_commit']}/LICENSE.md"
+    )
+    for component, repository in (("webkit", "WebKit"), ("tinycc", "tinycc")):
+        assert manifest[f"{component}_source_url"] == (
+            f"https://github.com/oven-sh/{repository}/tree/{manifest[f'{component}_commit']}"
+        )
     snapshot = (project / "LICENSES" / "Bun-LICENSE.md").read_bytes()
     # Preserve upstream bytes, allowing only an added final newline.
     assert manifest["upstream_license_sha256"] in {
         hashlib.sha256(snapshot).hexdigest(),
         hashlib.sha256(snapshot.removesuffix(b"\n")).hexdigest(),
     }
+
+
+def test_explanatory_notices_do_not_duplicate_release_facts(project):
+    manifest = json.loads(
+        (project / "LICENSES" / "bun.json").read_text(encoding="utf-8")
+    )
+    for name in ("THIRD_PARTY_NOTICES.md", "LICENSES/LicenseRef-Bun.txt"):
+        text = (project / name).read_text(encoding="utf-8")
+        assert "bun.json" in text
+        assert manifest["version"] not in text
+        for key in ("source_commit", "webkit_commit", "tinycc_commit"):
+            assert manifest[key] not in text
 
 
 def test_sdist_retains_licenses_without_binary_or_download(

@@ -3,11 +3,16 @@
   "source_commit": "744846f844374847c902b5e7fd59b4342a51ef99",
   "webkit_commit": "2e2aa2290fac856d6f451ceacb58f7f5b44dd057",
   "tinycc_commit": "05f0fafaa3be31e31d7b4b5c17dc60f62c991171",
+  "release_url": "https://github.com/oven-sh/bun/releases/tag/bun-v1.4.2",
+  "source_url": "https://github.com/oven-sh/bun/tree/744846f844374847c902b5e7fd59b4342a51ef99",
+  "upstream_license_url": "https://github.com/oven-sh/bun/blob/744846f844374847c902b5e7fd59b4342a51ef99/LICENSE.md",
+  "webkit_source_url": "https://github.com/oven-sh/WebKit/tree/2e2aa2290fac856d6f451ceacb58f7f5b44dd057",
+  "tinycc_source_url": "https://github.com/oven-sh/tinycc/tree/05f0fafaa3be31e31d7b4b5c17dc60f62c991171",
   "upstream_license_sha256": "b9caf52728691b4057e371232c221a132883198be2f3d2ddf92c90404c984b1a",
   "files": {
     "Bun-LICENSE.md": "51402e15bdab948668eb5bcca05c096bc8c47beaf96f0db4b41777faf546ba4f",
     "MIT.txt": "d3a3b575f764032f126b8082076227bea3d47798ab2191c395b744a89975ddc8",
     "LGPL-2.1-or-later.txt": "5749785c8bdefafcb5d798270ed0a967036fe2ca63dcedade1627565dfef81d2",
-    "LicenseRef-Bun.txt": "247c8895651855dd1d87b0c39934f40fb3911a65d25a35b253ac63d35ab13853"
+    "LicenseRef-Bun.txt": "86e6cb95577795ed294e38cbadf39cbf38a654cc3410d303aa932a942e2249ac"
   }
 }
