@@ -43,9 +43,17 @@ permission. Git authorship is useful evidence, not proof of copyright ownership.
 
 ## Bun updates and release checklist
 
-The update bot only proposes version changes. Wheel builds deliberately reject a
-Bun version that does not match `LICENSES/bun.json`, or notice files whose bytes
-do not match that manifest. This is a **consistency check, not legal approval**.
+The update bot proposes version changes together with the upstream licensing
+snapshot and manifest. It resolves the release tag to an immutable commit, checks
+the source version, and reads licensing information and WebKit/TinyCC revisions
+from that commit. It leaves explanatory notices and retained MIT/LGPL texts alone.
+If the upstream layout or licensing declaration cannot be resolved, it stops
+without editing files. `python scripts/update_bun.py --dry-run` checks a proposed
+update without editing files or emitting workflow outputs.
+
+Wheel builds reject a version that does not match `LICENSES/bun.json`, or notice
+files whose bytes do not match that manifest. Both the automated refresh and build
+validation are **consistency checks, not legal approval**.
 
 Before publishing any release:
 
@@ -54,13 +62,12 @@ Before publishing any release:
    and the selected corresponding-source/relinking distribution arrangements.
    Do not publish on the assumption that upstream binary availability proves
    compliance or transfers the distributor's responsibilities to upstream.
-2. For a new Bun version, resolve its tag to an immutable source commit. Refresh
-   `LICENSES/Bun-LICENSE.md` from that commit, preserving the upstream text (a
-   final newline may be added). Keep release-specific source revisions and links
-   in `LICENSES/bun.json`, not in the stable explanatory notices. Record
-   SHA-256 hashes of the original upstream licensing document and each retained
-   file, and collect any additional required component licenses and notices.
-   Updating hashes alone does not constitute the review in step 1.
+2. For a new Bun version, review the bot's generated `LICENSES/Bun-LICENSE.md` and
+   `LICENSES/bun.json` diff. For manual updates, follow the same immutable-source
+   procedure, preserving upstream bytes (a final newline may be added). Keep release
+   facts in the manifest, not the explanatory notices. Check the original document
+   and retained-file SHA-256 hashes, and collect any additional required component
+   licenses and notices. Refreshing data does not constitute the review in step 1.
 3. Keep dependency pins stable with `uv lock`; inspect the diff. For a
    packaging-only release, use an unused `.postN` version (for example,
    `1.4.2.post1`) rather than attempting to overwrite a published version.

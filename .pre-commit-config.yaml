@@ -12,7 +12,10 @@ repos:
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer
+        # Preserve upstream bytes; the updater adds a final newline only if needed.
+        exclude: ^LICENSES/Bun-LICENSE\.md$
       - id: trailing-whitespace
+        exclude: ^LICENSES/Bun-LICENSE\.md$
 
   - repo: https://github.com/astral-sh/uv-pre-commit
     rev: 0.11.19

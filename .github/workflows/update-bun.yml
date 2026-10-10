@@ -53,6 +53,8 @@ jobs:
           add-paths: |
             pyproject.toml
             uv.lock
+            LICENSES/Bun-LICENSE.md
+            LICENSES/bun.json
           commit-message: "chore: bump Bun to v${{ steps.check.outputs.version }}"
           title: "chore: bump Bun to v${{ steps.check.outputs.version }}"
           body: |
@@ -61,18 +63,24 @@ jobs:
             Updates `bun-wheel` to Bun **${{ steps.check.outputs.version }}**.
 
             Upstream release: ${{ steps.check.outputs.release_url }}
+            Licensing source: https://github.com/oven-sh/bun/tree/${{ steps.check.outputs.source_commit }}
 
             - All eight supported platform archives are available upstream.
             - The upstream checksum manifest has an entry for each archive.
             - `uv.lock` has been refreshed without requesting dependency upgrades.
+            - The upstream licensing snapshot and manifest have been refreshed from
+              the resolved release commit, including WebKit/TinyCC source revisions.
+            - Stable explanatory notices and retained MIT/LGPL texts are unchanged.
             - Wheel builds verify downloaded archives against upstream checksums.
+
+            This is a factual refresh, **not a redistribution compliance approval**.
 
             ### Maintainer steps
 
             1. If prompted, click **Approve workflows to run** to start PR checks.
-            2. Refresh `LICENSES/bun.json` and the upstream licensing files for this
-               exact release; follow the redistribution checklist in `CONTRIBUTING.md`.
-               Wheel builds reject a version with stale licensing snapshots.
+            2. Review the generated licensing diff and follow the redistribution
+               checklist in `CONTRIBUTING.md`. Collect any new required notices and
+               resolve applicable LGPL source/relinking requirements before publishing.
             3. Review the upstream release and wait for unit tests and all wheel builds.
             4. Merge only after the licensing review, then push the matching version tag to publish.
 

@@ -7,16 +7,21 @@ Requires Python 3.11+ and uv on PATH. Use --dry-run to check without editing.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
 import subprocess
 import tomllib
 import urllib.request
+from dataclasses import dataclass
 from pathlib import Path
 
-RELEASE_API = "https://api.github.com/repos/oven-sh/bun/releases/latest"
-RELEASE_URL = "https://github.com/oven-sh/bun/releases"
+REPOSITORY_URL = "https://github.com/oven-sh/bun"
+API_URL = "https://api.github.com/repos/oven-sh/bun"
+RAW_URL = "https://raw.githubusercontent.com/oven-sh/bun"
+RELEASE_API = f"{API_URL}/releases/latest"
+RELEASE_URL = f"{REPOSITORY_URL}/releases"
 REQUIRED_ASSETS = {
     "bun-linux-x64.zip",
     "bun-linux-aarch64.zip",
@@ -28,6 +33,17 @@ REQUIRED_ASSETS = {
     "bun-windows-aarch64.zip",
 }
 VERSION_PATTERN = r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+
+
+@dataclass(frozen=True)
+class BunLicensing:
+    """Release-pinned upstream facts, not a redistribution compliance approval."""
+
+    version: str
+    source_commit: str
+    webkit_commit: str
+    tinycc_commit: str
+    document: bytes
 
 
 def version_tuple(version: str) -> tuple[int, int, int]:
@@ -87,25 +103,8 @@ def replace_project_version(text: str, version: str) -> str:
     return text[: section.start(1)] + body + text[section.end(1) :]
 
 
-def update_project(root: Path, version: str) -> None:
-    """Update metadata and relock, restoring files if relocking fails."""
-    project = root / "pyproject.toml"
-    lock = root / "uv.lock"
-    original_project = project.read_bytes()
-    original_lock = lock.read_bytes()
-    updated = replace_project_version(original_project.decode(), version)
-    try:
-        project.write_text(updated)
-        # No --upgrade: retain existing dependency pins during the metadata refresh.
-        subprocess.run(["uv", "lock"], cwd=root, check=True)
-    except (OSError, subprocess.CalledProcessError):
-        project.write_bytes(original_project)
-        lock.write_bytes(original_lock)
-        raise
-
-
-def fetch_latest_release() -> dict:
-    """Fetch GitHub's latest non-prerelease Bun release with optional API auth."""
+def fetch_github_json(url: str) -> dict:
+    """Fetch an upstream GitHub API object with optional authentication."""
     headers = {
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -113,9 +112,130 @@ def fetch_latest_release() -> dict:
     }
     if token := os.environ.get("GH_TOKEN"):
         headers["Authorization"] = f"Bearer {token}"
-    request = urllib.request.Request(RELEASE_API, headers=headers)
+    request = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(request, timeout=30) as response:
-        return json.load(response)
+        data = json.load(response)
+    if not isinstance(data, dict):
+        raise ValueError(f"Expected a GitHub API object: {url}")
+    return data
+
+
+def fetch_latest_release() -> dict:
+    """Fetch GitHub's latest non-prerelease Bun release."""
+    return fetch_github_json(RELEASE_API)
+
+
+def fetch_source_file(commit: str, path: str) -> bytes:
+    """Read an immutable upstream source file without forwarding API credentials."""
+    with urllib.request.urlopen(f"{RAW_URL}/{commit}/{path}", timeout=30) as response:
+        return response.read()
+
+
+def extract_commit(text: str, name: str) -> str:
+    """Resolve a single literal source revision, rejecting unknown layouts."""
+    declarations = re.findall(
+        rf"(?m)^[ \t]*(?:export[ \t]+)?const[ \t]+{re.escape(name)}"
+        r"[ \t]*=[ \t]*([^\r\n]+)\r?$",
+        text,
+    )
+    if len(declarations) != 1:
+        raise ValueError(f"Cannot resolve exactly one {name}; review upstream layout")
+    match = re.fullmatch(
+        r"([\"'])([0-9a-f]{40})\1[ \t]*;?[ \t]*(?://[^\r\n]*)?",
+        declarations[0],
+    )
+    if match is None:
+        raise ValueError(
+            f"Expected an immutable commit for {name}; manual review needed"
+        )
+    return match[2]
+
+
+def fetch_licensing(version: str) -> BunLicensing:
+    """Resolve a release tag and collect licensing facts only from its commit."""
+    if re.fullmatch(VERSION_PATTERN, version) is None:
+        raise ValueError(f"Expected a stable Bun version: {version}")
+    commit = fetch_github_json(f"{API_URL}/commits/bun-v{version}").get("sha")
+    if not isinstance(commit, str) or re.fullmatch(r"[0-9a-f]{40}", commit) is None:
+        raise ValueError("Cannot resolve Bun release tag to an immutable commit")
+
+    package = json.loads(fetch_source_file(commit, "package.json"))
+    if not isinstance(package, dict) or package.get("version") != version:
+        raise ValueError("Resolved Bun source does not match the release version")
+    document = fetch_source_file(commit, "LICENSE.md")
+    if "Bun itself is MIT-licensed." not in document.decode("utf-8"):
+        raise ValueError(
+            "Bun's MIT licensing declaration changed; manual review needed"
+        )
+    webkit = extract_commit(
+        fetch_source_file(commit, "scripts/build/deps/webkit.ts").decode("utf-8"),
+        "WEBKIT_VERSION",
+    )
+    tinycc = extract_commit(
+        fetch_source_file(commit, "scripts/build/deps/tinycc.ts").decode("utf-8"),
+        "TINYCC_COMMIT",
+    )
+    return BunLicensing(version, commit, webkit, tinycc, document)
+
+
+def licensing_updates(root: Path, licensing: BunLicensing) -> dict[str, bytes]:
+    """Render the snapshot and manifest without rewriting explanatory notices."""
+    document = licensing.document
+    snapshot = document if document.endswith(b"\n") else document + b"\n"
+    files = {"Bun-LICENSE.md": hashlib.sha256(snapshot).hexdigest()}
+    for name in ("MIT.txt", "LGPL-2.1-or-later.txt", "LicenseRef-Bun.txt"):
+        files[name] = hashlib.sha256(
+            (root / "LICENSES" / name).read_bytes()
+        ).hexdigest()
+    for path in sorted((root / "LICENSES").iterdir()):
+        if path.is_file() and path.name not in files and path.name != "bun.json":
+            files[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+    manifest = {
+        "version": licensing.version,
+        "source_commit": licensing.source_commit,
+        "webkit_commit": licensing.webkit_commit,
+        "tinycc_commit": licensing.tinycc_commit,
+        "release_url": f"{RELEASE_URL}/tag/bun-v{licensing.version}",
+        "source_url": f"{REPOSITORY_URL}/tree/{licensing.source_commit}",
+        "upstream_license_url": (
+            f"{REPOSITORY_URL}/blob/{licensing.source_commit}/LICENSE.md"
+        ),
+        "webkit_source_url": (
+            f"https://github.com/oven-sh/WebKit/tree/{licensing.webkit_commit}"
+        ),
+        "tinycc_source_url": (
+            f"https://github.com/oven-sh/tinycc/tree/{licensing.tinycc_commit}"
+        ),
+        "upstream_license_sha256": hashlib.sha256(document).hexdigest(),
+        "files": files,
+    }
+    return {
+        "LICENSES/Bun-LICENSE.md": snapshot,
+        "LICENSES/bun.json": (json.dumps(manifest, indent=2) + "\n").encode("utf-8"),
+    }
+
+
+def update_project(root: Path, version: str, licensing: BunLicensing) -> None:
+    """Update release data together, restoring files on write or relock failure."""
+    if licensing.version != version:
+        raise ValueError("Licensing snapshot does not match the proposed Bun version")
+    updates = licensing_updates(root, licensing)
+    original_project = (root / "pyproject.toml").read_bytes()
+    updates["pyproject.toml"] = replace_project_version(
+        original_project.decode("utf-8"), version
+    ).encode("utf-8")
+    originals = {name: (root / name).read_bytes() for name in (*updates, "uv.lock")}
+    try:
+        for name, data in updates.items():
+            (root / name).write_bytes(data)
+        # No --upgrade: retain existing dependency pins during the metadata refresh.
+        subprocess.run(["uv", "lock"], cwd=root, check=True)
+    except (OSError, subprocess.CalledProcessError):
+        for name, data in originals.items():
+            path = root / name
+            if not path.is_file() or path.read_bytes() != data:
+                path.write_bytes(data)
+        raise
 
 
 def main() -> None:
@@ -134,14 +254,17 @@ def main() -> None:
     checksum_url = f"{RELEASE_URL}/download/{tag}/SHASUMS256.txt"
     with urllib.request.urlopen(checksum_url, timeout=30) as response:
         verify_manifest(response.read().decode())
+    licensing = fetch_licensing(version)
     print(f"Bun update available: {current} -> {version}\n{RELEASE_URL}/tag/{tag}")
+    print(f"Licensing source: {REPOSITORY_URL}/tree/{licensing.source_commit}")
     if args.dry_run:
         return
 
-    update_project(root, version)
+    update_project(root, version, licensing)
     if output := os.environ.get("GITHUB_OUTPUT"):
         with Path(output).open("a") as stream:
             stream.write(f"version={version}\nrelease_url={RELEASE_URL}/tag/{tag}\n")
+            stream.write(f"source_commit={licensing.source_commit}\n")
             stream.write("changed=true\n")
 
 
