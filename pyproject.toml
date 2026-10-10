@@ -3,7 +3,7 @@ name = "bun-wheel"
 version = "1.4.2"
 description = "Unofficial Bun wheel"
 readme = "README.md"
-license = "LGPL-2.1-or-later"
+license = "Apache-2.0"
 license-files = ["LICENSE", "LICENSES/*"]
 authors = [
     { name = "Agil Mammadov", email = "mammadovagil@proton.me" }
@@ -13,7 +13,6 @@ dependencies = []
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: GNU Lesser General Public License v2 or later (LGPLv2+)",
     "Operating System :: MacOS",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",

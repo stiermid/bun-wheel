@@ -47,4 +47,6 @@ This project is not affiliated with or endorsed by Oven Inc. Bun is developed an
 
 ## License
 
-This project is licensed under the LGPL-2.1 License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License, Version 2.0 - see the [LICENSE](LICENSE) file for details.
+
+The bundled Bun binary is distributed under its own MIT license - see [LICENSES/MIT.txt](LICENSES/MIT.txt).
