@@ -103,7 +103,9 @@ def _assert_license_files(files, metadata_name, license_prefix, root):
         value.startswith("License ::") for value in metadata.get_all("Classifier", [])
     )
     expected = {"LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"} | {
-        path.relative_to(root).as_posix() for path in (root / "LICENSES").iterdir()
+        path.relative_to(root).as_posix()
+        for path in (root / "LICENSES").iterdir()
+        if path.is_file() and not path.name.startswith(".")
     }
     license_files = metadata.get_all("License-File", [])
     assert len(license_files) == len(expected)
@@ -242,4 +244,19 @@ def test_wheel_from_sdist_retains_licenses(project, tmp_path, downloads):
         destination.write_bytes(data)
     wheel = _build(WheelBuilder, rebuilt_root, tmp_path / "wheel")
     _assert_wheel_licenses(wheel, project)
+    assert len(downloads) == 2
+
+
+def test_hidden_local_files_are_not_wheel_license_files(project, tmp_path, downloads):
+    directory = project / "LICENSES"
+    (directory / ".DS_Store").write_bytes(b"\xffFinder metadata")
+    (directory / ".hidden-notice.txt").write_bytes(b"Unpackaged local fixture")
+    (directory / "unpackaged-directory").mkdir()
+    path = _build(WheelBuilder, project, tmp_path / "wheel")
+    _assert_wheel_licenses(path, project)
+    with ZipFile(path) as archive:
+        names = archive.namelist()
+        assert not any(
+            ".DS_Store" in name or ".hidden-notice.txt" in name for name in names
+        )
     assert len(downloads) == 2

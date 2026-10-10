@@ -15,6 +15,7 @@ import subprocess
 import tomllib
 import urllib.request
 from dataclasses import dataclass
+from glob import glob
 from pathlib import Path
 
 REPOSITORY_URL = "https://github.com/oven-sh/bun"
@@ -187,7 +188,9 @@ def licensing_updates(root: Path, licensing: BunLicensing) -> dict[str, bytes]:
         files[name] = hashlib.sha256(
             (root / "LICENSES" / name).read_bytes()
         ).hexdigest()
-    for path in sorted((root / "LICENSES").iterdir()):
+    # Match the flat LICENSES/* packaging glob, including its hidden-file rules.
+    for name in sorted(glob("*", root_dir=root / "LICENSES")):
+        path = root / "LICENSES" / name
         if path.is_file() and path.name not in files and path.name != "bun.json":
             files[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
     manifest = {

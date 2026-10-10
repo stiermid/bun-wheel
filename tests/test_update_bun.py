@@ -498,6 +498,42 @@ def test_licensing_updates_preserves_additional_component_notices(project, licen
     assert additional.read_bytes() == original
 
 
+@pytest.mark.parametrize("name", [".DS_Store", ".hidden-notice.txt", ".gitkeep"])
+def test_licensing_updates_ignores_hidden_local_files(project, licensing, name):
+    hidden = project / "LICENSES" / name
+    hidden.write_bytes(b"\xffLocal metadata, not a packaged licensing file")
+    originals = _project_bytes(project)
+    updates = update_bun.licensing_updates(project, licensing)
+    manifest = json.loads(updates["LICENSES/bun.json"])
+    assert name not in manifest["files"]
+    assert _project_bytes(project) == originals
+
+
+def test_generated_license_entries_match_packaging_glob(project, licensing):
+    pytest.importorskip("hatchling")
+    from hatchling.builders.wheel import WheelBuilder
+
+    # Use the project's actual packaging configuration to detect selection drift.
+    config = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    (project / "pyproject.toml").write_bytes(config.read_bytes())
+    directory = project / "LICENSES"
+    (directory / ".DS_Store").write_bytes(b"\xffFinder metadata")
+    (directory / "component-BSD.txt").write_bytes(b"Additional component notice\n")
+    (directory / "unpackaged-directory").mkdir()
+    (directory / "unpackaged-directory" / "notice.txt").write_bytes(b"Nested fixture")
+    updates = update_bun.licensing_updates(project, licensing)
+    manifest = json.loads(updates["LICENSES/bun.json"])
+    packaged = {
+        name.removeprefix("LICENSES/")
+        for name in WheelBuilder(str(project)).metadata.core.license_files
+        if name.startswith("LICENSES/") and name != "LICENSES/bun.json"
+    }
+    assert set(manifest["files"]) == packaged
+    assert "component-BSD.txt" in packaged
+    assert ".DS_Store" not in packaged
+    assert "unpackaged-directory" not in packaged
+
+
 def test_update_project_rejects_mismatched_licensing_version(project, licensing):
     originals = _project_bytes(project)
     with patch.object(update_bun.subprocess, "run") as run:
