@@ -83,6 +83,75 @@ def test_verify_bun_licenses_rejects_changed_notice(license_snapshot):
         hatch_build._verify_bun_licenses(license_snapshot, "1.4.2")
 
 
+@pytest.fixture
+def additional_license_snapshot(license_snapshot):
+    directory = license_snapshot / "LICENSES"
+    data = b"Additional component copyright and license notice\n"
+    (directory / "component-BSD.txt").write_bytes(data)
+    path = directory / "bun.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["files"]["component-BSD.txt"] = hashlib.sha256(data).hexdigest()
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+    return license_snapshot
+
+
+def test_verify_bun_licenses_checks_additional_notice(additional_license_snapshot):
+    hatch_build._verify_bun_licenses(additional_license_snapshot, "1.4.2")
+
+
+def test_verify_bun_licenses_rejects_missing_additional_notice(
+    additional_license_snapshot,
+):
+    (additional_license_snapshot / "LICENSES" / "component-BSD.txt").unlink()
+    with pytest.raises(RuntimeError, match="Missing Bun licensing file or checksum"):
+        hatch_build._verify_bun_licenses(additional_license_snapshot, "1.4.2")
+
+
+def test_verify_bun_licenses_rejects_changed_additional_notice(
+    additional_license_snapshot,
+):
+    (additional_license_snapshot / "LICENSES" / "component-BSD.txt").write_bytes(
+        b"altered"
+    )
+    with pytest.raises(RuntimeError, match="Bun licensing checksum mismatch"):
+        hatch_build._verify_bun_licenses(additional_license_snapshot, "1.4.2")
+
+
+@pytest.mark.parametrize("checksum", [None, 0, {}, [], "bad", "z" * 64])
+def test_verify_bun_licenses_rejects_invalid_checksum(
+    additional_license_snapshot, checksum
+):
+    path = additional_license_snapshot / "LICENSES" / "bun.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["files"]["component-BSD.txt"] = checksum
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(RuntimeError, match="Invalid Bun licensing checksum"):
+        hatch_build._verify_bun_licenses(additional_license_snapshot, "1.4.2")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "",
+        ".hidden.txt",
+        "../outside.txt",
+        "/absolute.txt",
+        "subdir/file.txt",
+        r"subdir\file.txt",
+        "C:notice.txt",
+        "notice\n.txt",
+        "bun.json",
+    ],
+)
+def test_verify_bun_licenses_rejects_unsafe_manifest_filename(license_snapshot, name):
+    path = license_snapshot / "LICENSES" / "bun.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    manifest["files"][name] = "a" * 64
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(RuntimeError, match="Invalid Bun licensing filename"):
+        hatch_build._verify_bun_licenses(license_snapshot, "1.4.2")
+
+
 @pytest.mark.parametrize(
     ("machine", "expected"),
     [
@@ -336,6 +405,26 @@ def test_initialize_rejects_stale_licenses_before_network(license_snapshot):
             hook.initialize("standard", {"force_include": {}})
         fetch.assert_not_called()
     assert not (license_snapshot / "src").exists()
+
+
+def test_initialize_rejects_changed_additional_notice_before_network(
+    additional_license_snapshot,
+):
+    (additional_license_snapshot / "LICENSES" / "component-BSD.txt").write_bytes(
+        b"altered"
+    )
+    with (
+        _hook_at(additional_license_snapshot) as hook,
+        patch.object(
+            hatch_build.CustomBuildHook, "metadata", new_callable=PropertyMock
+        ) as metadata,
+        patch("hatch_build.urllib.request.urlopen") as fetch,
+    ):
+        metadata.return_value.version = "1.4.2"
+        with pytest.raises(RuntimeError, match="Bun licensing checksum mismatch"):
+            hook.initialize("standard", {"force_include": {}})
+        fetch.assert_not_called()
+    assert not (additional_license_snapshot / "src").exists()
 
 
 @pytest.mark.parametrize("version", ["1.4.2", "1.4.2.post1"])

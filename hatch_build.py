@@ -16,6 +16,7 @@ from typing import Any
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -51,16 +52,32 @@ def _verify_bun_licenses(root: Path, bun_version: str) -> None:
             "Refresh LICENSES/bun.json and the upstream notices; see CONTRIBUTING.md."
         )
 
-    for name in (
+    required = (
         "Bun-LICENSE.md",
         "MIT.txt",
         "LGPL-2.1-or-later.txt",
         "LicenseRef-Bun.txt",
-    ):
+    )
+    for name in required:
+        if name not in files:
+            raise RuntimeError(f"Missing Bun licensing file or checksum: {name}")
+
+    for name, expected in files.items():
+        if (
+            not name
+            or name.startswith(".")
+            or name == "bun.json"
+            or any(character in "/\\:" or ord(character) < 32 for character in name)
+        ):
+            raise RuntimeError(f"Invalid Bun licensing filename: {name!r}")
+        if (
+            not isinstance(expected, str)
+            or re.fullmatch(r"[0-9a-f]{64}", expected) is None
+        ):
+            raise RuntimeError(f"Invalid Bun licensing checksum: {name}")
         try:
             digest = hashlib.sha256((license_dir / name).read_bytes()).hexdigest()
-            expected = files[name]
-        except (OSError, KeyError) as exc:
+        except OSError as exc:
             raise RuntimeError(
                 f"Missing Bun licensing file or checksum: {name}"
             ) from exc
