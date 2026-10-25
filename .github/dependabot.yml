@@ -1,0 +1,37 @@
+version: 2
+
+# Batch routine updates to limit CI runs across the wheel-build matrix.
+# Major updates get individual PRs.
+updates:
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Keep transitive dependencies in uv.lock up to date as well.
+    allow:
+      - dependency-type: "all"
+    groups:
+      python-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      hooks-minor-patch:
+        patterns: ["*"]
+        # Coordinate uv hook updates with setup-uv's with.version pin in
+        # .github/workflows/update-bun.yml; Dependabot cannot sync that input.
+        exclude-patterns: ["*uv-pre-commit*"]
+        update-types: ["minor", "patch"]
