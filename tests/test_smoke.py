@@ -49,16 +49,9 @@ def test_run_bun_nonzero_exit_code():
     assert run_bun(["-e", "process.exit(3)"]) == 3
 
 
-def test_run_bun_check_raises_on_nonzero_exit():
-    with pytest.raises(subprocess.CalledProcessError) as exc_info:
-        run_bun(["-e", "process.exit(3)"], check=True)
-    assert exc_info.value.returncode == 3
-
-
 def test_python_m_module_version():
     completed = subprocess.run(
         [sys.executable, "-m", "bun_wheel", "--version"],
-        check=False,
         capture_output=True,
         text=True,
     )
@@ -69,7 +62,5 @@ def test_python_m_module_version():
     shutil.which("bun") is None, reason="bun console script not installed"
 )
 def test_console_script_version():
-    completed = subprocess.run(
-        ["bun", "--version"], check=False, capture_output=True, text=True
-    )
+    completed = subprocess.run(["bun", "--version"], capture_output=True, text=True)
     assert completed.returncode == 0

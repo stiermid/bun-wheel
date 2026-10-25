@@ -45,11 +45,9 @@ def test_target_machine_host_platform_env_precedence(monkeypatch):
 
 def test_target_machine_win32_raises(monkeypatch):
     monkeypatch.delenv("_PYTHON_HOST_PLATFORM", raising=False)
-    with (
-        patch("sysconfig.get_platform", return_value="win32"),
-        pytest.raises(RuntimeError, match="Unsupported architecture"),
-    ):
-        hatch_build._target_machine()
+    with patch("sysconfig.get_platform", return_value="win32"):
+        with pytest.raises(RuntimeError, match="Unsupported architecture"):
+            hatch_build._target_machine()
 
 
 @pytest.mark.parametrize(
@@ -82,11 +80,9 @@ def test_target_system_host_platform_env_precedence(monkeypatch):
 
 def test_target_system_unsupported(monkeypatch):
     monkeypatch.delenv("_PYTHON_HOST_PLATFORM", raising=False)
-    with (
-        patch("sysconfig.get_platform", return_value="freebsd-14.0-amd64"),
-        pytest.raises(RuntimeError, match="Unsupported platform"),
-    ):
-        hatch_build._target_system()
+    with patch("sysconfig.get_platform", return_value="freebsd-14.0-amd64"):
+        with pytest.raises(RuntimeError, match="Unsupported platform"):
+            hatch_build._target_system()
 
 
 def test_ensure_native_build_match(monkeypatch):
@@ -224,30 +220,26 @@ def test_verify_checksum_mismatch(tmp_path):
     zip_path = tmp_path / "bun-linux-x64.zip"
     zip_path.write_bytes(b"tampered")
     shasums = ("0" * 64 + "  bun-linux-x64.zip\n").encode()
-    with (
-        patch(
-            "hatch_build.urllib.request.urlopen", return_value=_fake_urlopen(shasums)
-        ),
-        pytest.raises(RuntimeError, match="Checksum mismatch"),
+    with patch(
+        "hatch_build.urllib.request.urlopen", return_value=_fake_urlopen(shasums)
     ):
-        hatch_build.CustomBuildHook._verify_checksum(
-            None, zip_path, "bun-linux-x64.zip", "https://example/SHASUMS256.txt"
-        )
+        with pytest.raises(RuntimeError, match="Checksum mismatch"):
+            hatch_build.CustomBuildHook._verify_checksum(
+                None, zip_path, "bun-linux-x64.zip", "https://example/SHASUMS256.txt"
+            )
 
 
 def test_verify_checksum_missing_entry(tmp_path):
     zip_path = tmp_path / "bun-linux-x64.zip"
     zip_path.write_bytes(b"payload")
     shasums = ("ab" * 32 + "  other-file.zip\n").encode()
-    with (
-        patch(
-            "hatch_build.urllib.request.urlopen", return_value=_fake_urlopen(shasums)
-        ),
-        pytest.raises(RuntimeError, match="No checksum found"),
+    with patch(
+        "hatch_build.urllib.request.urlopen", return_value=_fake_urlopen(shasums)
     ):
-        hatch_build.CustomBuildHook._verify_checksum(
-            None, zip_path, "bun-linux-x64.zip", "https://example/SHASUMS256.txt"
-        )
+        with pytest.raises(RuntimeError, match="No checksum found"):
+            hatch_build.CustomBuildHook._verify_checksum(
+                None, zip_path, "bun-linux-x64.zip", "https://example/SHASUMS256.txt"
+            )
 
 
 @contextmanager

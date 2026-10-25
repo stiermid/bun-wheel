@@ -11,6 +11,8 @@ Cross-arch builds on the same OS (e.g. macOS arm64 runners building x86_64
 via ``_PYTHON_HOST_PLATFORM``) remain supported.
 """
 
+from typing import Any
+
 import hashlib
 import os
 import shutil
@@ -22,7 +24,6 @@ import urllib.request
 import zipfile
 from glob import glob
 from pathlib import Path
-from typing import Any
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 from packaging.version import Version
@@ -38,9 +39,7 @@ def _is_musl() -> bool:
     if glob("/lib/ld-musl-*.so.1"):
         return True
     try:
-        result = subprocess.run(
-            ["ldd", "--version"], check=False, capture_output=True, text=True
-        )
+        result = subprocess.run(["ldd", "--version"], capture_output=True, text=True)
         return "musl" in (result.stdout + result.stderr).lower()
     except (OSError, subprocess.SubprocessError):
         return False
