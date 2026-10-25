@@ -65,7 +65,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.4.1
+        uses: pypa/cibuildwheel@v4.3.4
         env:
           CIBW_BUILD_VERBOSITY: 1
           CIBW_BUILD: cp${{ matrix.python }}-${{ matrix.platform_id }}
