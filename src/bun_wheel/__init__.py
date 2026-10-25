@@ -75,7 +75,8 @@ def run_bun(
 
     """
     binary = _get_bun_path()
-    completed = subprocess.run([binary, *args], **kwargs)
+    check = kwargs.pop("check", False)
+    completed = subprocess.run([binary, *args], check=check, **kwargs)
     if return_completed_process:
         return completed
     return completed.returncode
@@ -131,7 +132,7 @@ def exec_bun() -> NoReturn:
     argv = [binary, *sys.argv[1:]]
 
     if sys.platform == "win32":
-        completed = subprocess.run(argv)
+        completed = subprocess.run(argv, check=False)
         sys.exit(completed.returncode)
 
     try:

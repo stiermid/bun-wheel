@@ -130,9 +130,11 @@ def test_update_project_restores_files_on_failure(project, error):
         (project / "uv.lock").write_text("partially modified lock")
         raise error
 
-    with patch.object(update_bun.subprocess, "run", side_effect=fail):
-        with pytest.raises(type(error)):
-            update_bun.update_project(project, "1.4.3")
+    with (
+        patch.object(update_bun.subprocess, "run", side_effect=fail),
+        pytest.raises(type(error)),
+    ):
+        update_bun.update_project(project, "1.4.3")
     for name, original in originals.items():
         assert (project / name).read_bytes() == original
 

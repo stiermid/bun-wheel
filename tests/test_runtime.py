@@ -23,7 +23,7 @@ def test_run_bun_returns_exit_code():
         patch("bun_wheel.subprocess.run", return_value=completed) as run,
     ):
         assert run_bun(["--version"]) == 0
-        run.assert_called_once_with(["/fake/bun", "--version"])
+        run.assert_called_once_with(["/fake/bun", "--version"], check=False)
 
 
 def test_run_bun_empty_args_calls_binary_only():
@@ -33,7 +33,7 @@ def test_run_bun_empty_args_calls_binary_only():
         patch("bun_wheel.subprocess.run", return_value=completed) as run,
     ):
         assert run_bun() == 0
-        run.assert_called_once_with(["/fake/bun"])
+        run.assert_called_once_with(["/fake/bun"], check=False)
 
 
 def test_run_bun_completed_process():
@@ -45,15 +45,16 @@ def test_run_bun_completed_process():
         assert run_bun(["--version"], return_completed_process=True) is completed
 
 
-def test_run_bun_kwargs_passthrough():
+@pytest.mark.parametrize("check", [False, True])
+def test_run_bun_kwargs_passthrough(check):
     completed = MagicMock(returncode=0)
     with (
         patch("bun_wheel._get_bun_path", return_value="/fake/bun"),
         patch("bun_wheel.subprocess.run", return_value=completed) as run,
     ):
-        run_bun(["run", "app.ts"], cwd="/tmp", check=False)
+        run_bun(["run", "app.ts"], cwd="/tmp", check=check)
         run.assert_called_once_with(
-            ["/fake/bun", "run", "app.ts"], cwd="/tmp", check=False
+            ["/fake/bun", "run", "app.ts"], cwd="/tmp", check=check
         )
 
 
@@ -62,9 +63,11 @@ def test_run_bun_default_args_immutable():
 
 
 def test_run_bun_missing_binary_propagates():
-    with patch("bun_wheel._get_bun_path", side_effect=FileNotFoundError("nope")):
-        with pytest.raises(FileNotFoundError):
-            run_bun(["--version"])
+    with (
+        patch("bun_wheel._get_bun_path", side_effect=FileNotFoundError("nope")),
+        pytest.raises(FileNotFoundError),
+    ):
+        run_bun(["--version"])
 
 
 def test_bun_alias_forwards_to_run_bun():
@@ -92,9 +95,11 @@ def test_get_bun_path_win32(monkeypatch):
 
 
 def test_get_bun_path_missing_raises():
-    with patch("pathlib.Path.is_file", return_value=False):
-        with pytest.raises(FileNotFoundError):
-            bun_wheel._get_bun_path()
+    with (
+        patch("pathlib.Path.is_file", return_value=False),
+        pytest.raises(FileNotFoundError),
+    ):
+        bun_wheel._get_bun_path()
 
 
 def test_get_bun_path_rejects_directory(monkeypatch):
@@ -104,9 +109,9 @@ def test_get_bun_path_rejects_directory(monkeypatch):
     with (
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.is_file", return_value=False),
+        pytest.raises(FileNotFoundError),
     ):
-        with pytest.raises(FileNotFoundError):
-            bun_wheel._get_bun_path()
+        bun_wheel._get_bun_path()
 
 
 def test_exec_bun_missing_binary_exits_1(capsys):
@@ -157,7 +162,7 @@ def test_exec_bun_win32_fallback_exits_with_child_code(monkeypatch):
         with pytest.raises(SystemExit) as exc_info:
             exec_bun()
         assert exc_info.value.code == 3
-        run.assert_called_once_with([r"C:\fake\bun.exe", "--version"])
+        run.assert_called_once_with([r"C:\fake\bun.exe", "--version"], check=False)
         execv.assert_not_called()
 
 
@@ -189,7 +194,7 @@ def test_run_bun_accepts_pathlike_args():
         from pathlib import Path
 
         assert run_bun([Path("app.ts")]) == 0
-        run.assert_called_once_with(["/fake/bun", Path("app.ts")])
+        run.assert_called_once_with(["/fake/bun", Path("app.ts")], check=False)
 
 
 def test_main_module_calls_exec_bun():

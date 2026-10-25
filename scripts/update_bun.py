@@ -11,9 +11,10 @@ import json
 import os
 import re
 import subprocess
-import tomllib
 import urllib.request
 from pathlib import Path
+
+import tomllib
 
 RELEASE_API = "https://api.github.com/repos/oven-sh/bun/releases/latest"
 RELEASE_URL = "https://github.com/oven-sh/bun/releases"
