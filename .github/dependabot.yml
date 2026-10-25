@@ -5,6 +5,8 @@ version: 2
 updates:
   - package-ecosystem: "uv"
     directory: "/"
+    commit-message:
+      prefix: "chore(python)"
     schedule:
       interval: "weekly"
     # Keep transitive dependencies in uv.lock up to date as well.
@@ -17,6 +19,8 @@ updates:
 
   - package-ecosystem: "github-actions"
     directory: "/"
+    commit-message:
+      prefix: "chore(actions)"
     schedule:
       interval: "weekly"
     groups:
@@ -26,6 +30,8 @@ updates:
 
   - package-ecosystem: "pre-commit"
     directory: "/"
+    commit-message:
+      prefix: "chore(pre-commit)"
     schedule:
       interval: "weekly"
     groups:
