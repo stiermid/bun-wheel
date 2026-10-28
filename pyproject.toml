@@ -46,10 +46,11 @@ path="hatch_build.py"
 
 [dependency-groups]
 dev = [
+    { include-group = "test" },
     "hatch>=1.16.5",
-    "pytest>=8.3.0",
     "ruff>=0.15.15",
 ]
+test = ["pytest>=8.3.0"]
 
 [tool.uv.dependency-groups]
 # Patched filelock releases used by Hatch require Python 3.11+.
