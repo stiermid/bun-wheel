@@ -51,6 +51,10 @@ dev = [
     "ruff>=0.15.15",
 ]
 
+[tool.uv.dependency-groups]
+# Patched filelock releases used by Hatch require Python 3.11+.
+dev = { requires-python = ">=3.11" }
+
 [tool.cibuildwheel]
 build = ["cp313-*"]
 
