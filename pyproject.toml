@@ -1,6 +1,6 @@
 [project]
 name = "bun-wheel"
-version = "1.4.4"
+version = "1.4.5"
 description = "Unofficial Bun wheel"
 readme = "README.md"
 license = "Apache-2.0"
